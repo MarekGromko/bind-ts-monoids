@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "npx mocha ./tests/**",
+    "test": "mocha ./tests/**",
     "test:coverage": "nyc ???"
   },
   "author": "",
