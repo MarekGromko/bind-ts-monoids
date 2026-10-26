@@ -67,14 +67,12 @@ describe('Maybe', () => {
             expect(received).to.deep.equal([5]);
         });
 
-        it('keeps null and undefined results present when mapping', () => {
+        it('returns None when mapping produces null or undefined', () => {
             const nullResult = Maybe.of(1).map(() => null);
             const undefinedResult = Maybe.of(1).map(() => undefined);
 
-            expect(nullResult).to.be.instanceOf(Maybe.Some);
-            expect(nullResult.get()).to.equal(null);
-            expect(undefinedResult).to.be.instanceOf(Maybe.Some);
-            expect(undefinedResult.get()).to.equal(undefined);
+            expect(nullResult).to.be.instanceOf(Maybe.None);
+            expect(undefinedResult).to.be.instanceOf(Maybe.None);
         });
 
         it('flatMaps to the exact Maybe returned by the transform', () => {

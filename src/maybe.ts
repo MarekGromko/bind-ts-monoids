@@ -88,11 +88,12 @@ export class Some<T> extends Maybe<T> {
     }
 
     /**
-     * Transforms the contained value and wraps the result in a new `Some`.
+        * Transforms the contained value, returning `None` for a nullish result
+        * and `Some` otherwise.
      * @param transform Function applied to the contained value.
      */
-    map<U>(transform: (value: T) => U): Some<U> {
-        return Maybe.of(transform(this.data));
+    map<U>(transform: (value: T) => U): Maybe<U> {
+        return Maybe.ofNullable(transform(this.data));
     }
 
     /**
