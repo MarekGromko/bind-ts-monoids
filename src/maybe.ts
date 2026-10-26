@@ -92,7 +92,7 @@ export class Some<T> extends Maybe<T> {
         * and `Some` otherwise.
      * @param transform Function applied to the contained value.
      */
-    map<U>(transform: (value: T) => U): Maybe<U> {
+    map<U>(transform: (value: T) => U): ReturnType<typeof Maybe.ofNullable<U>> {
         return Maybe.ofNullable(transform(this.data));
     }
 
@@ -212,3 +212,7 @@ export class None extends Maybe<never> {
 Object.assign(Maybe, { None });
 
 export default Maybe;
+
+
+var x = Maybe.of(10);
+let y = x.map(()=>null);

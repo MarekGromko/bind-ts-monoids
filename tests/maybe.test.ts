@@ -1,4 +1,4 @@
-import { Maybe } from '../src/maybe.ts';
+import { Maybe, None } from '../src/maybe.ts';
 import { Monad } from '../src/monad.ts';
 
 describe('Maybe', () => {
@@ -67,12 +67,12 @@ describe('Maybe', () => {
             expect(received).to.deep.equal([5]);
         });
 
-        it('returns None when mapping produces null or undefined', () => {
-            const nullResult = Maybe.of(1).map(() => null);
-            const undefinedResult = Maybe.of(1).map(() => undefined);
+        it('returns and infers None when mapping produces null or undefined', () => {
+            const nullResult: None = Maybe.of(1).map(() => null);
+            const undefinedResult: None = Maybe.of(1).map(() => undefined);
 
-            expect(nullResult).to.be.instanceOf(Maybe.None);
-            expect(undefinedResult).to.be.instanceOf(Maybe.None);
+            expect(nullResult).to.be.instanceOf(None);
+            expect(undefinedResult).to.be.instanceOf(None);
         });
 
         it('flatMaps to the exact Maybe returned by the transform', () => {
