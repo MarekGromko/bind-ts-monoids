@@ -1,6 +1,5 @@
 {
     "extension": ["ts"],
     "spec": "tests/**/*.test.ts",
-    "import": "tsx",
     "require": ["./tests/.setup.ts"]
 }
