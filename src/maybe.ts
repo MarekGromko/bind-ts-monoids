@@ -100,7 +100,7 @@ export class Some<T> extends Maybe<T> {
      * Transforms the contained value with a function that returns another `Maybe`.
      * @param transform Function applied to the contained value.
      */
-    flatMap<U>(transform: (value: T) => Maybe<U>): Maybe<U> {
+    flatMap<U>(transform: (value: T) => U): U {
         return transform(this.data);
     }
 
