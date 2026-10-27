@@ -167,7 +167,7 @@ export class None extends Maybe<never> {
      * Returns a new `None` without invoking a transform.
      * @param _transform Transform that is not invoked because no value is present.
      */
-    map(_transform: (value: never)=>unknown): None {
+    map(_transform: (value: never) => unknown): None {
         return this;
     }
 
@@ -175,7 +175,7 @@ export class None extends Maybe<never> {
      * Returns a new `None` without invoking a transform.
      * @param _transform Transform that is not invoked because no value is present.
      */
-    flatMap(_transform: (value: never)=>unknown): None {
+    flatMap(_transform: (value: never) => unknown): None {
         return this;
     }
 
