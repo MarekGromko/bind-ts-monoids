@@ -16,6 +16,14 @@ export abstract class Maybe<T> extends Monad<T> {
     }
 
     /**
+     * Create a None case of a Maybe<never> monad
+     * @returns a None maybe monad
+     */
+    static none(): None {
+        return new None();
+    }
+
+    /**
      * Wraps a non-nullish value in `Some`, or returns `None` for `null` and `undefined`.
      * @param thing Value to wrap if it is not nullish.
      */
@@ -62,7 +70,7 @@ export abstract class Maybe<T> extends Monad<T> {
     /**
      * Returns whether a value is present and narrows this instance to `Some<T>`.
      */
-    abstract isPresent(): this is Some<T>;
+    abstract isPresent(this: Some<T> | None): this is Some<T>;
 
     /**
      * Returns whether no value is present and narrows this instance to `Maybe.None`.
@@ -129,7 +137,7 @@ export class Some<T> extends Maybe<T> {
     /**
      * Returns `true`, identifying this instance as a present value.
      */
-    isPresent(): this is Some<T> {
+    isPresent(this: None | Some<T>): this is Some<T> {
         return true;
     }
 
@@ -159,16 +167,16 @@ export class None extends Maybe<never> {
      * Returns a new `None` without invoking a transform.
      * @param _transform Transform that is not invoked because no value is present.
      */
-    map<U>(_transform: never): None {
-        return new None();
+    map(_transform: (value: never)=>unknown): None {
+        return this;
     }
 
     /**
      * Returns a new `None` without invoking a transform.
      * @param _transform Transform that is not invoked because no value is present.
      */
-    flatMap(_transform: never): None {
-        return new None();
+    flatMap(_transform: (value: never)=>unknown): None {
+        return this;
     }
 
     /**
