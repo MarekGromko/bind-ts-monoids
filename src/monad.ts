@@ -1,27 +1,33 @@
 /**
- * Base contract for monadic values that support mapping and chaining.
- * Concrete types must satisfy the monad laws: left identity, right identity,
- * and associativity.
- * @typeParam T Type of the value contained in this monad.
+ * Describes a value that supports transformation and monadic composition.
+ *
+ * @typeParam T - Type of the value represented by this monad.
  */
-export abstract class Monad<T> {
+export interface Monad<T> {
     /**
-     * Transforms the contained value and wraps the result in a new monad.
-     * @param transform Function applied to the contained value.
+     * Applies a function that returns another monad and composes its result.
+     *
+     * @typeParam U - Type of the value represented by the resulting monad.
+     * @param fn - Function applied to the value represented by this monad.
+     * @returns The monad returned by `fn`, composed according to the implementing type's rules.
      */
-    abstract map<U>(transform: (value: T) => U): Monad<U>;
+    bind<U>(fn: (value: T) => Monad<U>): Monad<U>;
 
     /**
-     * Transforms the contained value with a function that returns another monad.
-     * @param transform Function applied to the contained value.
+     * Transforms the represented value while preserving the monadic context.
+     *
+     * @typeParam U - Type returned by the mapping function.
+     * @param fn - Function applied to the value represented by this monad.
+     * @returns A monad representing the transformed value.
      */
-    abstract flatMap<U>(transform: (value: T) => Monad<U>): Monad<U>;
+    map<U>(fn: (value: T) => U): Monad<U>;
 
     /**
-     * Alias for `flatMap` that chains another monadic computation.
-     * @param transform Function applied to the contained value.
+     * Composes a function that returns a monad, avoiding a nested monadic result.
+     *
+     * @typeParam U - Type of the value represented by the resulting monad.
+     * @param fn - Function applied to the value represented by this monad.
+     * @returns The composed monadic result.
      */
-    bind<U>(transform: (value: T) => Monad<U>): Monad<U> {
-        return this.flatMap(transform);
-    }
+    flatMap<U>(fn: (value: T) => Monad<U>): Monad<U>;
 }

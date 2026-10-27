@@ -1,222 +1,319 @@
-import { Monad } from './monad.ts';
+import type { Monad } from './monad.ts';
 
 /**
- * Represents an optional value that may be present (`Some`) or absent (`None`).
- * @typeParam T Type of the value contained when present.
- * @see Some
- * @see None
+ * Represents an optional value that is either present as {@link Some} or absent as {@link None}.
+ *
+ * @typeParam T - The type of the value represented when this instance is `Some`.
  */
-export abstract class Maybe<T> extends Monad<T> {
-    /**
-     * Wraps a value in a `Some`, including `null` or `undefined` if supplied.
-     * @param thing Value to wrap.
-     */
-    static of<T>(thing: T): Some<T> {
-        return new Some<T>(thing);
-    }
+export interface Maybe<T> extends Monad<T> {
+    /** Discriminates between a present (`some`) and absent (`none`) value. */
+    readonly kind: 'some' | 'none';
 
     /**
-     * Create a None case of a Maybe<never> monad
-     * @returns a None maybe monad
+     * Returns the contained value, or the supplied fallback when this is `None`.
+     *
+     * @param defaultValue - Value returned when no value is present.
+     * @returns The contained value for `Some`, otherwise `defaultValue`.
      */
-    static none(): None {
-        return new None();
-    }
+    getOrElse(defaultValue: T): T;
 
     /**
-     * Wraps a non-nullish value in `Some`, or returns `None` for `null` and `undefined`.
-     * @param thing Value to wrap if it is not nullish.
+     * Returns the contained value.
+     *
+     * @returns The value for `Some`.
+     * @throws {Error} `None` throws because it has no value to return.
      */
-    static ofNullable<T>(thing: T): T extends null | undefined ? None : Some<NonNullable<T>>;
-    static ofNullable<T>(thing: T): None | Some<NonNullable<T>> {
-        if (thing === null || thing === undefined) {
-            return new None();
-        }
-        return new Some<NonNullable<T>>(thing);
-    }
-
-    /** Constructor for a present value. */
-    static readonly Some: typeof Some;
-
-    /** Constructor for an absent value. */
-    static readonly None: typeof None;
-
-    /** Prevents direct instantiation while allowing concrete subclasses. */
-    constructor() {
-        super();
-        if (new.target === Maybe) {
-            throw new Error('Maybe cannot be instantiated directly');
-        }
-    }
+    get(): T | undefined;
 
     /**
-     * Returns the contained value, or throws when this instance is `None`.
+     * Eliminates this optional value by invoking the handler for its current variant.
+     *
+     * @typeParam U - Return type of the `None` handler.
+     * @typeParam V - Return type of the `Some` handler.
+     * @param onNone - Handler invoked when this is `None`.
+     * @param onSome - Handler invoked with the contained value when this is `Some`.
+     * @returns The result of the handler corresponding to this variant.
      */
-    abstract get(): T;
+    fold<U, V>(onNone: () => U, onSome: (value: T) => V): U | V;
 
     /**
-     * Returns the contained value, or the supplied fallback when this instance is `None`.
-     * @param defaultValue Value returned when no value is present.
+     * Applies a function that returns another `Maybe`, flattening the result.
+     *
+     * @typeParam U - Type of the value in the resulting `Maybe`.
+     * @param fn - Function applied to the contained value; it is not called for `None`.
+     * @returns The function result for `Some`, or an absent value for `None`.
      */
-    abstract getOrElse<U>(defaultValue: U): T | U;
+    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
 
     /**
-     * Applies the callback corresponding to this instance and returns its result.
-     * @param onNone Callback invoked when this instance is `None`.
-     * @param onSome Callback invoked with the contained value when this instance is `Some`.
+     * Applies a function that returns another `Maybe`.
+     *
+     * @typeParam U - Type of the value in the resulting `Maybe`.
+     * @param fn - Function applied to the contained value; it is not called for `None`.
+     * @returns The function result for `Some`, or an absent value for `None`.
      */
-    abstract fold<U, V>(onNone: () => U, onSome: (value: T) => V): U | V;
+    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
 
     /**
-     * Returns whether a value is present and narrows this instance to `Some<T>`.
+     * Transforms the contained value while preserving the optional context.
+     * A `null` or `undefined` result becomes `None`.
+     *
+     * @typeParam U - Type returned by the mapping function.
+     * @param fn - Function applied to the contained value; it is not called for `None`.
+     * @returns A `Maybe` containing the mapped value, or `None` when absent/nullish.
      */
-    abstract isPresent(this: Some<T> | None): this is Some<T>;
+    map<U>(fn: (value: T) => U): Maybe<U>;
 
     /**
-     * Returns whether no value is present and narrows this instance to `Maybe.None`.
+     * Type guard that narrows this instance to {@link Some}.
+     *
+     * @returns `true` when this instance contains a value.
      */
-    abstract isAbsent(): this is None;
+    isSome(): this is Some<T>;
+
+    /**
+     * Type guard that narrows this instance to {@link None}.
+     *
+     * @returns `true` when this instance is absent.
+     */
+    isNone(): this is None<T>;
 }
 
-/**
- * Represents a present value, including `null` or `undefined` when explicitly wrapped.
- * @see Maybe
- * @see None
- */
-export class Some<T> extends Maybe<T> {
-    private readonly data: T;
+/** A `Maybe` variant that contains a value. */
+export class Some<T> implements Maybe<T> {
+    /** The value stored by this instance. */
+    private readonly value: T;
 
     /**
-     * Creates a present value containing `data`.
-     * @param data Value to store.
+     * Creates a `Some` containing the supplied value.
+     *
+     * @param value - Value to store; direct construction permits `null` or `undefined` when included in `T`.
      */
-    constructor(data: T) {
-        super();
-        this.data = data;
+    constructor(value: T) {
+        this.value = value;
+    }
+
+    /** Identifies this instance as the present variant. */
+    get kind(): 'some' {
+        return 'some';
     }
 
     /**
-     * Transforms the contained value, returning `None` for a nullish result
-     * and `Some` otherwise.
-     * @param transform Function applied to the contained value.
+     * Returns the contained value; the fallback is unused for `Some`.
+     *
+     * @param defaultValue - Fallback value, unused by this variant.
+     * @returns The contained value.
      */
-    map<U>(transform: (value: T) => U): ReturnType<typeof Maybe.ofNullable<U>> {
-        return Maybe.ofNullable(transform(this.data));
+    getOrElse(defaultValue: T): T {
+        return this.value;
     }
 
     /**
-     * Transforms the contained value with a function that returns another `Maybe`.
-     * @param transform Function applied to the contained value.
+     * Returns the contained value.
+     *
+     * @returns The stored value.
      */
-    flatMap<U>(transform: (value: T) => U): U {
-        return transform(this.data);
-    }
-
-    /** Returns the contained value. */
     get(): T {
-        return this.data;
+        return this.value;
     }
 
     /**
-     * Returns the contained value; `defaultValue` is not used for `Some`.
-     * @param defaultValue Fallback returned only by `None`.
+     * Invokes the present-value handler.
+     *
+     * @typeParam U - Return type of the absent-value handler.
+     * @typeParam V - Return type of the present-value handler.
+     * @param onNone - Handler used by `None`; unused for `Some`.
+     * @param onSome - Handler invoked with the stored value.
+     * @returns The result of `onSome`.
      */
-    getOrElse<U>(_defaultValue: U): T | U {
-        return this.data;
+    fold<U, V>(onNone: () => U, onSome: (value: T) => V): U | V {
+        return onSome(this.value);
     }
 
     /**
-     * Calls `onSome` with the contained value and returns its result.
-     * @param onNone Callback used by `None`; not called for `Some`.
-     * @param onSome Callback invoked with this instance's value.
+     * Applies a function to the stored value and returns its `Maybe` result.
+     *
+     * @typeParam U - Type of the resulting value.
+     * @param fn - Function applied to the stored value.
+     * @returns The function result.
      */
-    fold<V>(_onNone: () => never, onSome: (value: T) => V): V {
-        return onSome(this.data);
+    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+        return fn(this.value);
     }
 
     /**
-     * Returns `true`, identifying this instance as a present value.
+     * Maps the stored value into a new `Maybe`.
+     *
+     * @typeParam U - Type returned by the mapping function.
+     * @param fn - Function applied to the stored value.
+     * @returns `Some` of the mapped value, or `None` if the result is `null` or `undefined`.
      */
-    isPresent(this: None | Some<T>): this is Some<T> {
+    map<U>(fn: (value: T) => U): Maybe<U> {
+        return Maybe.fromNullable(fn(this.value));
+    }
+
+    /**
+     * Applies a function returning `Maybe`; this is an alias for {@link bind}.
+     *
+     * @typeParam U - Type of the resulting value.
+     * @param fn - Function applied to the stored value.
+     * @returns The function result without adding another `Maybe` layer.
+     */
+    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+        return this.bind(fn);
+    }
+
+    /**
+     * Narrows this instance to `Some`.
+     *
+     * @returns Always `true`.
+     */
+    isSome(): this is Some<T> {
         return true;
     }
 
     /**
-     * Returns `false`, identifying this instance as not absent.
+     * Narrows this instance to `None` when true.
+     *
+     * @returns Always `false`.
      */
-    isAbsent(): this is None {
+    isNone(): this is None<T> {
         return false;
     }
 }
-Object.assign(Maybe, { Some });
 
-/**
- * Represents the absence of a value.
- * @see Maybe
- * @see Some
- */
-export class None extends Maybe<never> {
-    /**
-     * Creates an absent value.
-     */
-    constructor() {
-        super();
+/** A `Maybe` variant that represents the absence of a value. */
+export class None<T> implements Maybe<T> {
+    /** Identifies this instance as the absent variant. */
+    get kind(): 'none' {
+        return 'none';
     }
 
     /**
-     * Returns a new `None` without invoking a transform.
-     * @param _transform Transform that is not invoked because no value is present.
+     * Returns the supplied fallback because this instance contains no value.
+     *
+     * @param defaultValue - Value to return.
+     * @returns `defaultValue`.
      */
-    map(_transform: (value: never) => unknown): None {
-        return this;
-    }
-
-    /**
-     * Returns a new `None` without invoking a transform.
-     * @param _transform Transform that is not invoked because no value is present.
-     */
-    flatMap(_transform: (value: never) => unknown): None {
-        return this;
-    }
-
-    /**
-     * Throws because this instance contains no value.
-     */
-    get(): never {
-        throw new Error('No value present');
-    }
-
-    /**
-     * Returns `defaultValue` because this instance contains no value.
-     * @param defaultValue Value returned when no value is present.
-     */
-    getOrElse<U>(defaultValue: U): U {
+    getOrElse(defaultValue: T): T {
         return defaultValue;
     }
 
     /**
-     * Calls `onNone` and returns its result.
-     * @param onNone Callback invoked because no value is present.
-     * @param _onSome Callback used by `Some`; not called for `None`.
+     * Attempts to retrieve a value from this absent instance.
+     *
+     * @returns This method never returns.
+     * @throws {Error} Always throws because `None` contains no value.
      */
-    fold<U>(onNone: () => U, _onSome: never): U {
+    get(): never {
+        throw new Error('Cannot get value from None');
+    }
+
+    /**
+     * Invokes the absent-value handler.
+     *
+     * @typeParam U - Return type of the absent-value handler.
+     * @typeParam V - Return type of the present-value handler.
+     * @param onNone - Handler invoked for this instance.
+     * @param onSome - Handler used by `Some`; unused for `None`.
+     * @returns The result of `onNone`.
+     */
+    fold<U, V>(onNone: () => U, onSome: (value: T) => V): U | V {
         return onNone();
     }
 
     /**
-     * Returns `false`, identifying this instance as not present.
+     * Preserves the absent value without invoking the function.
+     *
+     * @typeParam U - Type parameter of the resulting `Maybe`.
+     * @param fn - Function that would transform a present value; unused for `None`.
+     * @returns This absent instance typed as `Maybe<U>`.
      */
-    isPresent(): this is Some<never> {
+    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+        return this as unknown as Maybe<U>;
+    }
+
+    /**
+     * Preserves absence without invoking the function.
+     *
+     * @typeParam U - Type of the value in the resulting `Maybe`.
+     * @param fn - Function that would transform a present value; unused for `None`.
+     * @returns A new `None<U>`.
+     */
+    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+        return new None<U>();
+    }
+
+    /**
+     * Preserves absence without invoking the mapping function.
+     *
+     * @typeParam U - Type returned by the mapping function.
+     * @param fn - Function that would transform a present value; unused for `None`.
+     * @returns A new `None<U>`.
+     */
+    map<U>(fn: (value: T) => U): Maybe<U> {
+        return new None<U>();
+    }
+
+    /**
+     * Narrows this instance to `Some` when true.
+     *
+     * @returns Always `false`.
+     */
+    isSome(): this is Some<T> {
         return false;
     }
 
     /**
-     * Returns `true`, identifying this instance as absent.
+     * Narrows this instance to `None`.
+     *
+     * @returns Always `true`.
      */
-    isAbsent(): this is None {
+    isNone(): this is None<T> {
         return true;
     }
 }
-Object.assign(Maybe, { None });
 
-export default Maybe;
+/**
+ * Creates a `Some` containing the supplied value.
+ *
+ * @typeParam T - Type of the contained value.
+ * @param value - Value to wrap.
+ * @returns A new `Some` instance.
+ */
+function some<T>(value: T): Maybe<T> {
+    return new Some(value);
+}
+
+/**
+ * Creates an empty `Maybe`.
+ *
+ * @typeParam T - Type of a value that may later be represented by this `Maybe`.
+ * @returns A new `None<T>` instance.
+ */
+function none<T>(): Maybe<T> {
+    return new None();
+}
+
+/**
+ * Infers a concrete result type for a non-nullish input.
+ *
+ * @typeParam T - Type of the supplied value.
+ * @param value - Value to inspect.
+ * @returns `None<T>` when `T` is nullish, otherwise `Some<T>`.
+ */
+function fromNullable<T>(value: T): T extends null | undefined ? None<T> : Some<T>;
+
+/**
+ * Wraps a value in the corresponding `Maybe` variant.
+ *
+ * @typeParam T - Type of the supplied value.
+ * @param value - Value to inspect.
+ * @returns `None` for `null` or `undefined`; otherwise `Some` containing the value.
+ */
+function fromNullable<T>(value: T): Maybe<T> {
+    return value === null || value === undefined ? new None() : new Some(value);
+}
+
+/** Factory methods for creating and converting {@link Maybe} values. */
+export const Maybe = { some, none, fromNullable };

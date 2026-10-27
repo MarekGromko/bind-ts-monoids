@@ -1,296 +1,248 @@
-import { Maybe, None } from '../src/maybe.ts';
-import { Monad } from '../src/monad.ts';
+import { Maybe, None, Some } from '../src/maybe.ts';
 
 describe('Maybe', () => {
-    describe('constructors', () => {
-        it('throws when Maybe is instantiated directly', () => {
-            expect(() => Reflect.construct(Maybe, [])).to.throw(
-                Error,
-                'Maybe cannot be instantiated directly',
-            );
-        });
-
-        it('of creates a Some containing the supplied value', () => {
-            const value = { id: 7 };
-            const result = Maybe.of(value);
-
-            expect(result).to.be.instanceOf(Maybe.Some);
-            expect(result.get()).to.equal(value);
-        });
-
-        it('of treats null and undefined as present values', () => {
-            const nullValue = Maybe.of(null);
-            const undefinedValue = Maybe.of(undefined);
-
-            expect(nullValue).to.be.instanceOf(Maybe.Some);
-            expect(nullValue.get()).to.equal(null);
-            expect(undefinedValue).to.be.instanceOf(Maybe.Some);
-            expect(undefinedValue.get()).to.equal(undefined);
-        });
-
-        it('ofNullable returns None for null and undefined', () => {
-            expect(Maybe.ofNullable(null)).to.be.instanceOf(Maybe.None);
-            expect(Maybe.ofNullable(undefined)).to.be.instanceOf(Maybe.None);
-        });
-
-        it('ofNullable wraps non-nullish values in Some', () => {
-            const value = { name: 'Ada' };
-            const result = Maybe.ofNullable(value);
-
-            expect(result).to.be.instanceOf(Maybe.Some);
-            expect(result.get()).to.equal(value);
-        });
-
-        it('ofNullable preserves falsy values', () => {
-            expect(Maybe.ofNullable(0).get()).to.equal(0);
-            expect(Maybe.ofNullable(false).get()).to.equal(false);
-            expect(Maybe.ofNullable('').get()).to.equal('');
-        });
-    });
-
     describe('Some', () => {
-        it('maps the contained value into a new Some', () => {
-            const result = Maybe.of(4).map((value) => value * 3);
+        it('stores the supplied value and identifies itself as some', () => {
+            const maybe = Maybe.some(42);
 
-            expect(result).to.be.instanceOf(Maybe.Some);
-            expect(result.get()).to.equal(12);
+            expect(maybe).to.be.instanceOf(Some);
+            expect(maybe.kind).to.equal('some');
+            expect(maybe.get()).to.equal(42);
         });
 
-        it('calls the map transform exactly once with the contained value', () => {
-            const received: number[] = [];
+        it('returns its value from getOrElse regardless of the default', () => {
+            expect(Maybe.some('value').getOrElse('fallback')).to.equal('value');
+        });
 
-            Maybe.of(5).map((value) => {
-                received.push(value);
-                return value;
+        it('reports the correct type guards', () => {
+            const maybe = Maybe.some(42);
+
+            expect(maybe.isSome()).to.equal(true);
+            expect(maybe.isNone()).to.equal(false);
+        });
+
+        it('folds with onSome and does not call onNone', () => {
+            const onNone = () => {
+                throw new Error('onNone should not be called');
+            };
+
+            expect(Maybe.some(3).fold(onNone, (value) => value * 2)).to.equal(6);
+        });
+
+        it('binds by passing the value to the callback and returning its result', () => {
+            const result = Maybe.some(5).bind((value) => Maybe.some(value + 1));
+
+            expect(result.kind).to.equal('some');
+            expect(result.get()).to.equal(6);
+        });
+
+        it('maps the value into another Some', () => {
+            const result = Maybe.some(5).map((value) => value.toString());
+
+            expect(result.kind).to.equal('some');
+            expect(result.get()).to.equal('5');
+        });
+
+        it('maps null or undefined results into None', () => {
+            expect(Maybe.some(1).map(() => null).kind).to.equal('none');
+            expect(Maybe.some(1).map(() => undefined).kind).to.equal('none');
+        });
+
+        it('keeps falsy non-null map results in Some', () => {
+            expect(
+                Maybe.some(1)
+                    .map(() => 0)
+                    .get(),
+            ).to.equal(0);
+            expect(
+                Maybe.some(1)
+                    .map(() => false)
+                    .get(),
+            ).to.equal(false);
+            expect(
+                Maybe.some(1)
+                    .map(() => '')
+                    .get(),
+            ).to.equal('');
+        });
+
+        it('can bind or flatMap to None', () => {
+            const bound = Maybe.some(1).bind(() => Maybe.none<string>());
+            const flatMapped = Maybe.some(1).flatMap(() => Maybe.none<string>());
+
+            expect(bound.kind).to.equal('none');
+            expect(flatMapped.kind).to.equal('none');
+        });
+
+        it('flatMaps by returning the callback result without nesting', () => {
+            const inner = Maybe.some('inner');
+            const result = Maybe.some('outer').flatMap(() => inner);
+
+            expect(result).to.equal(inner);
+        });
+
+        it('invokes bind, map, and flatMap callbacks exactly once', () => {
+            let calls = 0;
+            const callback = (value: number) => {
+                calls += 1;
+                return value + 1;
+            };
+
+            Maybe.some(1).bind((value) => {
+                callback(value);
+                return Maybe.some(value);
+            });
+            Maybe.some(1).map(callback);
+            Maybe.some(1).flatMap((value) => {
+                callback(value);
+                return Maybe.some(value);
             });
 
-            expect(received).to.deep.equal([5]);
+            expect(calls).to.equal(3);
         });
 
-        it('returns and infers None when mapping produces null or undefined', () => {
-            const nullResult: None = Maybe.of(1).map(() => null);
-            const undefinedResult: None = Maybe.of(1).map(() => undefined);
+        it('propagates callback errors', () => {
+            const failure = new Error('callback failed');
+            const callback = () => {
+                throw failure;
+            };
 
-            expect(nullResult).to.be.instanceOf(None);
-            expect(undefinedResult).to.be.instanceOf(None);
+            expect(() => Maybe.some(1).map(callback)).to.throw(failure);
+            expect(() => Maybe.some(1).bind(callback)).to.throw(failure);
+            expect(() => Maybe.some(1).flatMap(callback)).to.throw(failure);
         });
 
-        it('flatMaps to the exact Maybe returned by the transform', () => {
-            const expected = Maybe.of('chained');
-            const result = Maybe.of(1).flatMap(() => expected);
+        it('supports values that are themselves null or undefined when constructed directly', () => {
+            const nullValue = new Some<null>(null);
+            const undefinedValue = new Some<undefined>(undefined);
 
-            expect(result).to.equal(expected);
-        });
-
-        it('flatMaps to None when the transform returns None', () => {
-            const result = Maybe.of(1).flatMap(() => new Maybe.None());
-
-            expect(result).to.be.instanceOf(Maybe.None);
-        });
-
-        it('calls the flatMap transform exactly once with the contained value', () => {
-            const received: string[] = [];
-
-            Maybe.of('value').flatMap((value) => {
-                received.push(value);
-                return Maybe.of(value.length);
-            });
-
-            expect(received).to.deep.equal(['value']);
-        });
-
-        it('get returns the original contained value', () => {
-            const value = { nested: [1, 2] };
-
-            expect(Maybe.of(value).get()).to.equal(value);
-        });
-
-        it('getOrElse returns the contained value instead of the fallback', () => {
-            expect(Maybe.of('present').getOrElse('fallback')).to.equal('present');
-        });
-
-        it('fold calls only onSome and returns its result', () => {
-            let noneCalls = 0;
-            let someCalls = 0;
-            const value: Maybe<number> = Maybe.of(8);
-
-            const result = value.fold(
-                () => {
-                    noneCalls += 1;
-                    return 'absent';
-                },
-                (value) => {
-                    someCalls += 1;
-                    return `value:${value}`;
-                },
-            );
-
-            expect(result).to.equal('value:8');
-            expect(noneCalls).to.equal(0);
-            expect(someCalls).to.equal(1);
-        });
-
-        it('identifies itself as present and not absent', () => {
-            const value = Maybe.of('here');
-
-            expect(value.isPresent()).to.equal(true);
-            expect(value.isAbsent()).to.equal(false);
+            expect(nullValue.kind).to.equal('some');
+            expect(nullValue.get()).to.equal(null);
+            expect(undefinedValue.kind).to.equal('some');
+            expect(undefinedValue.get()).to.equal(undefined);
         });
     });
 
     describe('None', () => {
-        it('map returns None without invoking the transform', () => {
-            const value: Maybe<number> = new Maybe.None();
-            let calls = 0;
+        it('identifies itself as none', () => {
+            expect(Maybe.none()).to.be.instanceOf(None);
+            expect(Maybe.none().kind).to.equal('none');
+        });
 
-            const result = value.map((item) => {
-                calls += 1;
-                return item * 2;
+        it('reports the correct type guards', () => {
+            const maybe = Maybe.none<number>();
+
+            expect(maybe.isSome()).to.equal(false);
+            expect(maybe.isNone()).to.equal(true);
+        });
+
+        it('returns the supplied default from getOrElse', () => {
+            expect(Maybe.none<number>().getOrElse(7)).to.equal(7);
+        });
+
+        it('returns falsy defaults unchanged', () => {
+            expect(Maybe.none<number>().getOrElse(0)).to.equal(0);
+            expect(Maybe.none<boolean>().getOrElse(false)).to.equal(false);
+            expect(Maybe.none<string>().getOrElse('')).to.equal('');
+        });
+
+        it('throws when get is called', () => {
+            expect(() => Maybe.none().get()).to.throw(Error, 'Cannot get value from None');
+        });
+
+        it('folds with onNone and does not call onSome', () => {
+            const onSome = () => {
+                throw new Error('onSome should not be called');
+            };
+
+            expect(Maybe.none<number>().fold(() => 'empty', onSome)).to.equal('empty');
+        });
+
+        it('binds to None without calling the callback', () => {
+            let called = false;
+            const result = Maybe.none<number>().bind(() => {
+                called = true;
+                return Maybe.some('value');
             });
 
-            expect(result).to.be.instanceOf(Maybe.None);
-            expect(calls).to.equal(0);
+            expect(result.kind).to.equal('none');
+            expect(called).to.equal(false);
         });
 
-        it('flatMap returns None without invoking the transform', () => {
-            const value: Maybe<number> = new Maybe.None();
-            let calls = 0;
-
-            const result = value.flatMap((item) => {
-                calls += 1;
-                return Maybe.of(item * 2);
+        it('maps to None without calling the callback', () => {
+            let called = false;
+            const result = Maybe.none<number>().map(() => {
+                called = true;
+                return 'value';
             });
 
-            expect(result).to.be.instanceOf(Maybe.None);
+            expect(result.kind).to.equal('none');
+            expect(called).to.equal(false);
+        });
+
+        it('flatMaps to None without calling the callback', () => {
+            let called = false;
+            const result = Maybe.none<number>().flatMap(() => {
+                called = true;
+                return Maybe.some('value');
+            });
+
+            expect(result.kind).to.equal('none');
+            expect(called).to.equal(false);
+        });
+
+        it('returns a fresh None for each map or bind operation', () => {
+            const maybe = Maybe.none<number>();
+
+            expect(maybe.map(() => 1)).not.to.equal(maybe);
+            expect(maybe.bind(() => Maybe.some(1))).not.to.equal(maybe);
+        });
+
+        it('keeps None through a chain of map, bind, and flatMap', () => {
+            let calls = 0;
+            const result = Maybe.none<number>()
+                .map((value) => {
+                    calls += 1;
+                    return value + 1;
+                })
+                .bind((value) => {
+                    calls += 1;
+                    return Maybe.some(value + 1);
+                })
+                .flatMap((value) => {
+                    calls += 1;
+                    return Maybe.some(value + 1);
+                });
+
+            expect(result.kind).to.equal('none');
             expect(calls).to.equal(0);
-        });
-
-        it('get throws an error when no value is present', () => {
-            expect(() => new Maybe.None().get()).to.throw(Error, 'No value present');
-        });
-
-        it('getOrElse returns the exact fallback value', () => {
-            const fallback = { default: true };
-
-            expect(new Maybe.None().getOrElse(fallback)).to.equal(fallback);
-        });
-
-        it('getOrElse supports undefined as the fallback', () => {
-            expect(new Maybe.None().getOrElse(undefined)).to.equal(undefined);
-        });
-
-        it('fold calls only onNone and returns its result', () => {
-            let noneCalls = 0;
-            let someCalls = 0;
-            const value: Maybe<number> = new Maybe.None();
-
-            const result = value.fold(
-                () => {
-                    noneCalls += 1;
-                    return 'absent';
-                },
-                (item) => {
-                    someCalls += 1;
-                    return `value:${item}`;
-                },
-            );
-
-            expect(result).to.equal('absent');
-            expect(noneCalls).to.equal(1);
-            expect(someCalls).to.equal(0);
-        });
-
-        it('identifies itself as absent and not present', () => {
-            const value = new Maybe.None();
-
-            expect(value.isPresent()).to.equal(false);
-            expect(value.isAbsent()).to.equal(true);
         });
     });
 
-    describe('Monad operations', () => {
-        it('bind is an alias for flatMap on Some', () => {
-            const expected = Maybe.of('bound');
-            const result = Maybe.of(1).bind(() => expected);
-
-            expect(result).to.equal(expected);
+    describe('factories', () => {
+        it('creates Some with Maybe.some', () => {
+            expect(Maybe.some('x')).to.be.instanceOf(Some);
         });
 
-        it('bind preserves None and skips its transform', () => {
-            const value: Maybe<number> = new Maybe.None();
-            let calls = 0;
-
-            const result = value.bind((item) => {
-                calls += 1;
-                return Maybe.of(item);
-            });
-
-            expect(result).to.be.instanceOf(Maybe.None);
-            expect(calls).to.equal(0);
+        it('creates None with Maybe.none', () => {
+            expect(Maybe.none()).to.be.instanceOf(None);
         });
 
-        it('satisfies the functor identity law for Some and None', () => {
-            expectEquivalent(
-                Maybe.of(6).map((value) => value),
-                Maybe.of(6),
-            );
-            expectEquivalent(
-                (new Maybe.None() as Maybe<number>).map((value) => value),
-                new Maybe.None(),
-            );
+        it('creates None from null and undefined', () => {
+            expect(Maybe.fromNullable(null).kind).to.equal('none');
+            expect(Maybe.fromNullable(undefined).kind).to.equal('none');
         });
 
-        it('satisfies the functor composition law for Some and None', () => {
-            const first = (value: number) => value + 2;
-            const second = (value: number) => `${value}!`;
-
-            expectEquivalent(
-                Maybe.of(3).map(first).map(second),
-                Maybe.of(3).map((value) => second(first(value))),
-            );
-            expectEquivalent(
-                (new Maybe.None() as Maybe<number>).map(first).map(second),
-                new Maybe.None(),
-            );
+        it('creates distinct instances for separate factory calls', () => {
+            expect(Maybe.some(1)).not.to.equal(Maybe.some(1));
+            expect(Maybe.none()).not.to.equal(Maybe.none());
         });
 
-        it('satisfies the monad left identity law', () => {
-            const transform = (value: number) => Maybe.of(`${value * 2}`);
-
-            expectEquivalent(Maybe.of(4).flatMap(transform), transform(4));
-        });
-
-        it('satisfies the monad right identity law for Some and None', () => {
-            expectEquivalent(Maybe.of('value').flatMap(Maybe.of), Maybe.of('value'));
-            expectEquivalent(
-                (new Maybe.None() as Maybe<string>).flatMap(Maybe.of),
-                new Maybe.None(),
-            );
-        });
-
-        it('satisfies the monad associativity law for Some and None', () => {
-            const first = (value: number) => Maybe.of(value + 1);
-            const second = (value: number) => Maybe.of(`${value * 2}`);
-
-            expectEquivalent(
-                Maybe.of(3).flatMap(first).flatMap(second),
-                Maybe.of(3).flatMap((value) => first(value).flatMap(second)),
-            );
-            expectEquivalent(
-                (new Maybe.None() as Maybe<number>).flatMap(first).flatMap(second),
-                new Maybe.None(),
-            );
+        it('creates Some from non-null values, including falsy values', () => {
+            expect(Maybe.fromNullable(0).kind).to.equal('some');
+            expect(Maybe.fromNullable(false).kind).to.equal('some');
+            expect(Maybe.fromNullable('').kind).to.equal('some');
+            expect(Maybe.fromNullable('value').get()).to.equal('value');
         });
     });
 });
-
-/**
- * Asserts that two monadic values are equivalent by comparing their `Some`
- * status and, when both contain a value, their contents.
- */
-function expectEquivalent<T>(actual: Monad<T>, expected: Monad<T>): void {
-    expect(actual instanceof Maybe.Some).to.equal(expected instanceof Maybe.Some);
-    if (actual instanceof Maybe.Some && expected instanceof Maybe.Some) {
-        expect(actual.get()).to.deep.equal(expected.get());
-    }
-}
