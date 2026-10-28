@@ -43,7 +43,7 @@ export interface MaybeLike<T> extends Monad<T> {
      * @param fn - Function applied to the contained value; it is not called for `None`.
      * @returns The function result for `Some`, or an absent value for `None`.
      */
-    flatMap<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U>;
+    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
 
     /**
      * Applies a function that returns another `Maybe`.
@@ -52,7 +52,7 @@ export interface MaybeLike<T> extends Monad<T> {
      * @param fn - Function applied to the contained value; it is not called for `None`.
      * @returns The function result for `Some`, or an absent value for `None`.
      */
-    bind<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U>;
+    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
 
     /**
      * Transforms the contained value while preserving the optional context.
@@ -62,7 +62,7 @@ export interface MaybeLike<T> extends Monad<T> {
      * @param fn - Function applied to the contained value; it is not called for `None`.
      * @returns A `Maybe` containing the mapped value, or `None` when absent/nullish.
      */
-    map<U>(fn: (value: T) => U): MaybeLike<U>;
+    map<U>(fn: (value: T) => U): Maybe<U>;
 
     /**
      * Type guard that narrows this instance to {@link Some}.
@@ -109,7 +109,7 @@ export class Some<T> implements MaybeLike<T> {
      * @param defaultValue - Fallback value, unused by this variant.
      * @returns The contained value.
      */
-    getOrElse(defaultValue: T): T {
+    getOrElse(_defaultValue: T): T {
         return this.value;
     }
 
@@ -142,7 +142,7 @@ export class Some<T> implements MaybeLike<T> {
      * @param fn - Function applied to the stored value.
      * @returns The function result.
      */
-    bind<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
+    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
         return fn(this.value);
     }
 
@@ -153,7 +153,7 @@ export class Some<T> implements MaybeLike<T> {
      * @param fn - Function applied to the stored value.
      * @returns `Some` of the mapped value, or `None` if the result is `null` or `undefined`.
      */
-    map<U>(fn: (value: T) => U): MaybeLike<U> {
+    map<U>(fn: (value: T) => U): ReturnType<typeof fromNullable<U>> {
         return Maybe.fromNullable(fn(this.value));
     }
 
@@ -164,7 +164,7 @@ export class Some<T> implements MaybeLike<T> {
      * @param fn - Function applied to the stored value.
      * @returns The function result without adding another `Maybe` layer.
      */
-    flatMap<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
+    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
         return this.bind(fn);
     }
 
@@ -223,7 +223,7 @@ export class None<T> implements MaybeLike<T> {
      * @param onSome - Handler used by `Some`; unused for `None`.
      * @returns The result of `onNone`.
      */
-    fold<U, V>(onNone: () => U, onSome: (value: T) => V): U | V {
+    fold<U>(onNone: () => U, _onSome: (value: T) => never): U {
         return onNone();
     }
 
@@ -234,8 +234,8 @@ export class None<T> implements MaybeLike<T> {
      * @param fn - Function that would transform a present value; unused for `None`.
      * @returns This absent instance typed as `Maybe<U>`.
      */
-    flatMap<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
-        return this as unknown as MaybeLike<U>;
+    flatMap<U>(fn: (value: T) => Maybe<U>): None<U> {
+        return this as unknown as None<U>;
     }
 
     /**
@@ -245,8 +245,8 @@ export class None<T> implements MaybeLike<T> {
      * @param fn - Function that would transform a present value; unused for `None`.
      * @returns A new `None<U>`.
      */
-    bind<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
-        return new None<U>();
+    bind<U>(fn: (value: T) => Maybe<U>): None<U> {
+        return this as unknown as None<U>;
     }
 
     /**
@@ -256,7 +256,7 @@ export class None<T> implements MaybeLike<T> {
      * @param fn - Function that would transform a present value; unused for `None`.
      * @returns A new `None<U>`.
      */
-    map<U>(fn: (value: T) => U): MaybeLike<U> {
+    map<U>(fn: (value: T) => U): None<U> {
         return new None<U>();
     }
 
@@ -316,7 +316,7 @@ function fromNullable<T>(value: T): T extends null | undefined ? None<T> : Some<
  * @param value - Value to inspect.
  * @returns `None` for `null` or `undefined`; otherwise `Some` containing the value.
  */
-function fromNullable<T>(value: T): MaybeLike<T> {
+function fromNullable<T>(value: T): Maybe<T> {
     return value === null || value === undefined ? new None() : new Some(value);
 }
 
