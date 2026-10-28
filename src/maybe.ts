@@ -320,5 +320,13 @@ function fromNullable<T>(value: T): Maybe<T> {
     return value === null || value === undefined ? new None() : new Some(value);
 }
 
+function isMaybe<T = unknown>(value: unknown): value is MaybeLike<T> {
+    return (
+        value !== null &&
+        typeof value === 'object' &&
+        (value instanceof Some || value instanceof None)
+    );
+}
+
 /** Factory methods for creating and converting {@link MaybeLike} values. */
-export const Maybe = { Some, None, some, none, fromNullable };
+export const Maybe = { Some, None, some, none, fromNullable, isMaybe };
