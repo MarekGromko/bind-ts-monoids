@@ -5,7 +5,7 @@ import type { Monad } from './monad.ts';
  *
  * @typeParam T - The type of the value represented when this instance is `Some`.
  */
-export interface Maybe<T> extends Monad<T> {
+export interface MaybeLike<T> extends Monad<T> {
     /** Discriminates between a present (`some`) and absent (`none`) value. */
     readonly kind: 'some' | 'none';
 
@@ -43,7 +43,7 @@ export interface Maybe<T> extends Monad<T> {
      * @param fn - Function applied to the contained value; it is not called for `None`.
      * @returns The function result for `Some`, or an absent value for `None`.
      */
-    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
+    flatMap<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U>;
 
     /**
      * Applies a function that returns another `Maybe`.
@@ -52,7 +52,7 @@ export interface Maybe<T> extends Monad<T> {
      * @param fn - Function applied to the contained value; it is not called for `None`.
      * @returns The function result for `Some`, or an absent value for `None`.
      */
-    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
+    bind<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U>;
 
     /**
      * Transforms the contained value while preserving the optional context.
@@ -62,7 +62,7 @@ export interface Maybe<T> extends Monad<T> {
      * @param fn - Function applied to the contained value; it is not called for `None`.
      * @returns A `Maybe` containing the mapped value, or `None` when absent/nullish.
      */
-    map<U>(fn: (value: T) => U): Maybe<U>;
+    map<U>(fn: (value: T) => U): MaybeLike<U>;
 
     /**
      * Type guard that narrows this instance to {@link Some}.
@@ -79,8 +79,13 @@ export interface Maybe<T> extends Monad<T> {
     isNone(): this is None<T>;
 }
 
+/**
+ * A value that is either present as {@link Some} or absent as {@link None}.
+ */
+export type Maybe<T> = Some<T> | None<T>;
+
 /** A `Maybe` variant that contains a value. */
-export class Some<T> implements Maybe<T> {
+export class Some<T> implements MaybeLike<T> {
     /** The value stored by this instance. */
     private readonly value: T;
 
@@ -126,7 +131,7 @@ export class Some<T> implements Maybe<T> {
      * @param onSome - Handler invoked with the stored value.
      * @returns The result of `onSome`.
      */
-    fold<U, V>(onNone: () => U, onSome: (value: T) => V): U | V {
+    fold<V>(_onNone: () => never, onSome: (value: T) => V): V {
         return onSome(this.value);
     }
 
@@ -137,7 +142,7 @@ export class Some<T> implements Maybe<T> {
      * @param fn - Function applied to the stored value.
      * @returns The function result.
      */
-    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+    bind<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
         return fn(this.value);
     }
 
@@ -148,7 +153,7 @@ export class Some<T> implements Maybe<T> {
      * @param fn - Function applied to the stored value.
      * @returns `Some` of the mapped value, or `None` if the result is `null` or `undefined`.
      */
-    map<U>(fn: (value: T) => U): Maybe<U> {
+    map<U>(fn: (value: T) => U): MaybeLike<U> {
         return Maybe.fromNullable(fn(this.value));
     }
 
@@ -159,7 +164,7 @@ export class Some<T> implements Maybe<T> {
      * @param fn - Function applied to the stored value.
      * @returns The function result without adding another `Maybe` layer.
      */
-    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+    flatMap<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
         return this.bind(fn);
     }
 
@@ -183,7 +188,7 @@ export class Some<T> implements Maybe<T> {
 }
 
 /** A `Maybe` variant that represents the absence of a value. */
-export class None<T> implements Maybe<T> {
+export class None<T> implements MaybeLike<T> {
     /** Identifies this instance as the absent variant. */
     get kind(): 'none' {
         return 'none';
@@ -229,8 +234,8 @@ export class None<T> implements Maybe<T> {
      * @param fn - Function that would transform a present value; unused for `None`.
      * @returns This absent instance typed as `Maybe<U>`.
      */
-    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
-        return this as unknown as Maybe<U>;
+    flatMap<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
+        return this as unknown as MaybeLike<U>;
     }
 
     /**
@@ -240,7 +245,7 @@ export class None<T> implements Maybe<T> {
      * @param fn - Function that would transform a present value; unused for `None`.
      * @returns A new `None<U>`.
      */
-    bind<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+    bind<U>(fn: (value: T) => MaybeLike<U>): MaybeLike<U> {
         return new None<U>();
     }
 
@@ -251,7 +256,7 @@ export class None<T> implements Maybe<T> {
      * @param fn - Function that would transform a present value; unused for `None`.
      * @returns A new `None<U>`.
      */
-    map<U>(fn: (value: T) => U): Maybe<U> {
+    map<U>(fn: (value: T) => U): MaybeLike<U> {
         return new None<U>();
     }
 
@@ -281,7 +286,7 @@ export class None<T> implements Maybe<T> {
  * @param value - Value to wrap.
  * @returns A new `Some` instance.
  */
-function some<T>(value: T): Maybe<T> {
+function some<T>(value: T): Some<T> {
     return new Some(value);
 }
 
@@ -291,7 +296,7 @@ function some<T>(value: T): Maybe<T> {
  * @typeParam T - Type of a value that may later be represented by this `Maybe`.
  * @returns A new `None<T>` instance.
  */
-function none<T>(): Maybe<T> {
+function none<T>(): None<T> {
     return new None();
 }
 
@@ -311,9 +316,9 @@ function fromNullable<T>(value: T): T extends null | undefined ? None<T> : Some<
  * @param value - Value to inspect.
  * @returns `None` for `null` or `undefined`; otherwise `Some` containing the value.
  */
-function fromNullable<T>(value: T): Maybe<T> {
+function fromNullable<T>(value: T): MaybeLike<T> {
     return value === null || value === undefined ? new None() : new Some(value);
 }
 
-/** Factory methods for creating and converting {@link Maybe} values. */
-export const Maybe = { some, none, fromNullable };
+/** Factory methods for creating and converting {@link MaybeLike} values. */
+export const Maybe = { Some, None, some, none, fromNullable };
