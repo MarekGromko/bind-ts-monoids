@@ -1,26 +1,33 @@
 {
-  "name": "bind",
-  "version": "1.0.0",
-  "main": "index.js",
-  "type": "module",
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "@types/chai": "^5.2.3",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^26.6.5",
-    "chai": "^6.3.0",
-    "eslint": "^10.13.0",
-    "eslint-plugin-prettier": "^5.5.7",
-    "mocha": "^12.0.3",
-    "nyc": "^18.0.0",
-    "typescript": "^7.0.2"
-  }
+    "name": "bind",
+    "version": "1.0.0",
+    "main": "index.js",
+    "type": "module",
+    "files": [
+        "dist/"
+    ],
+    "engines": {
+        "node": ">=22.18.0"
+    },
+    "scripts": {
+        "clean": "node scripts/cleanup.ts",
+        "build": "tsc",
+        "format": "prettier --write .",
+        "test": "NODE_PATH=./ mocha --config .mocharc.json",
+        "coverage": "c8 --check-coverage --lines 100 --functions 100 --branches 100 --statements 100 --reporter=text --reporter=html npm run test"
+    },
+    "author": "",
+    "license": "ISC",
+    "description": "",
+    "devDependencies": {
+        "@types/chai": "^5.2.3",
+        "@types/mocha": "^10.0.10",
+        "@types/node": "^26.6.5",
+        "c8": "^10.1.3",
+        "chai": "^6.3.0",
+        "mocha": "^12.0.3",
+        "prettier": "^3.9.10",
+        "tsx": "^4.23.15",
+        "typescript": "^7.0.2"
+    }
 }
