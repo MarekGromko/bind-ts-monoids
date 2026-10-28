@@ -33,7 +33,7 @@ jobs:
               run: npm run build
 
             - name: Generate coverage report
-              run: npm run coverage
+              run: npm run coverage:100
 
             - name: Upload coverage report
               uses: actions/upload-pages-artifact@v3
