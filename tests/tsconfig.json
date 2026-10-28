@@ -1,6 +1,7 @@
 {
     "extends": "../tsconfig.json",
     "compilerOptions": {
+        "allowImportingTsExtensions": true,
         "noEmit": true,
         "rootDir": "../",
         "paths": {
@@ -9,5 +10,5 @@
         "types": ["mocha", "chai"]
     },
     "files": [".setup.ts"],
-    "include": ["./**/*.test.ts"]
+    "include": ["./**/*.test.ts", "maybe.test.ts"]
 }
