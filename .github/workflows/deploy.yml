@@ -1,0 +1,45 @@
+name: Coverage Report - Production
+
+on:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        environment:
+            name: coverage-report
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build
+              run: npm run build
+
+            - name: Generate coverage report
+              run: npm run coverage
+
+            - name: Upload coverage report
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: coverage
+
+            - name: Deploy coverage report to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4

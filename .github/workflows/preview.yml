@@ -1,0 +1,48 @@
+name: Coverage Report - Preview
+
+on:
+    push:
+        branches:
+            - develop
+    pull_request:
+        branches:
+            - develop
+
+permissions:
+    contents: read
+
+jobs:
+    preview:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build
+              run: npm run build
+
+            - name: Generate coverage report
+              run: npm run coverage:80
+
+            - name: Upload coverage preview
+              id: upload
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-report-${{ github.event.pull_request.number || github.sha }}
+                  path: coverage
+                  retention-days: 14
+
+            - name: Add preview link to summary
+              env:
+                  ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+              run: |
+                  echo "Coverage report preview: [Download report artifact]($ARTIFACT_URL). Extract it and open index.html." >> "$GITHUB_STEP_SUMMARY"
