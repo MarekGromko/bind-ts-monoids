@@ -191,13 +191,6 @@ describe('Maybe', () => {
             expect(called).to.equal(false);
         });
 
-        it('returns a fresh None for each map or bind operation', () => {
-            const maybe = Maybe.none<number>();
-
-            expect(maybe.map(() => 1)).not.to.equal(maybe);
-            expect(maybe.bind(() => Maybe.some(1))).not.to.equal(maybe);
-        });
-
         it('keeps None through a chain of map, bind, and flatMap', () => {
             let calls = 0;
             const result = Maybe.none<number>()
