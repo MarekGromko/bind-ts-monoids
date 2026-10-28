@@ -320,12 +320,15 @@ function fromNullable<T>(value: T): Maybe<T> {
     return value === null || value === undefined ? new None() : new Some(value);
 }
 
-function isMaybe<T = unknown>(value: unknown): value is MaybeLike<T> {
-    return (
-        value !== null &&
-        typeof value === 'object' &&
-        (value instanceof Some || value instanceof None)
-    );
+/**
+ * Checks whether a value is an instance of `Some` or `None`.
+ *
+ * @typeParam T - Type of the value represented by the `Maybe`.
+ * @param value - Value to check.
+ * @returns `true` when `value` is a `Some` or `None` instance; otherwise `false`.
+ */
+function isMaybe<T = unknown>(value: unknown): value is Maybe<T> {
+    return value instanceof Some || value instanceof None;
 }
 
 /** Factory methods for creating and converting {@link MaybeLike} values. */

@@ -213,6 +213,18 @@ describe('Maybe', () => {
     });
 
     describe('factories', () => {
+        it('recognizes Some and None instances with Maybe.isMaybe', () => {
+            expect(Maybe.isMaybe(Maybe.some('value'))).to.equal(true);
+            expect(Maybe.isMaybe(Maybe.none())).to.equal(true);
+        });
+
+        it('rejects values that are not Some or None instances', () => {
+            expect(Maybe.isMaybe(null)).to.equal(false);
+            expect(Maybe.isMaybe(undefined)).to.equal(false);
+            expect(Maybe.isMaybe(42)).to.equal(false);
+            expect(Maybe.isMaybe({ kind: 'some' })).to.equal(false);
+        });
+
         it('creates Some with Maybe.some', () => {
             expect(Maybe.some('x')).to.be.instanceOf(Some);
         });
