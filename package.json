@@ -14,7 +14,7 @@
         "build": "tsc",
         "format": "prettier --write .",
         "test": "NODE_PATH=./ mocha --config .mocharc.json",
-        "coverage": "c8 --reporter=text --reporter=html npm run test"
+        "coverage": "c8 --check-coverage --lines 100 --functions 100 --branches 100 --statements 100 --reporter=text --reporter=html npm run test"
     },
     "author": "",
     "license": "ISC",
